@@ -1,4 +1,4 @@
-#ifdef ARDUINO_ARCH_ESP32
+#ifdef USE_ESP32
 
 #include <esp_gap_ble_api.h>
 #include "esphome/core/log.h"
@@ -72,7 +72,7 @@ bool MyHomeIOT_BLEClient::parse_device(const esp32_ble_tracker::ESPBTDevice &dev
   return true;
 }
 
-void MyHomeIOT_BLEClient::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t esp_gattc_if,
+bool MyHomeIOT_BLEClient::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t esp_gattc_if,
   esp_ble_gattc_cb_param_t *param) {
     ESP_LOGD(TAG, "[%s] EVENT (%d)", to_string(this->address_).c_str(), event);
 
@@ -100,6 +100,7 @@ void MyHomeIOT_BLEClient::gattc_event_handler(esp_gattc_cb_event_t event, esp_ga
         report_error(MYHOMEIOT_IDLE);
         break;
       }
+      ESP_LOGI(TAG, "[%s] Connected successfully, app_id (%d)", to_string(this->address_).c_str(), ble_host_->app_id);
       this->conn_id_ = param->open.conn_id;
       if (auto status = esp_ble_gattc_send_mtu_req(ble_host_->gattc_if, param->open.conn_id))
       {
@@ -116,8 +117,7 @@ void MyHomeIOT_BLEClient::gattc_event_handler(esp_gattc_cb_event_t event, esp_ga
 		      ble_host_->app_id, esp_gattc_if);
       if (param->cfg_mtu.conn_id != this->conn_id_)
         break;
-      if (param->cfg_mtu.status != ESP_GATT_OK)
-      {
+      if (param->cfg_mtu.status != ESP_GATT_OK) {
         ESP_LOGW(TAG, "[%s] CFG_MTU_EVT failed, status (%d)", to_string(this->address_).c_str(),
           param->cfg_mtu.status);
         report_error();
@@ -214,8 +214,7 @@ void MyHomeIOT_BLEClient::gattc_event_handler(esp_gattc_cb_event_t event, esp_ga
         break;
       if (param->read.status != ESP_GATT_OK)
       {
-        ESP_LOGW(TAG, "[%s] READ_CHAR_EVT error reading char at handle (%d), status (%d)",
-			    to_string(this->address_).c_str(),
+        ESP_LOGW(TAG, "[%s] READ_CHAR_EVT error reading char at handle (%d), status (%d)", to_string(this->address_).c_str(),
 			    param->read.handle, param->read.status);
         report_error();
         break;
@@ -233,6 +232,7 @@ void MyHomeIOT_BLEClient::gattc_event_handler(esp_gattc_cb_event_t event, esp_ga
     default:
       break;
   }
+  return true;
 }
 
 std::string MyHomeIOT_BLEClient::to_string(uint64_t address) const {
